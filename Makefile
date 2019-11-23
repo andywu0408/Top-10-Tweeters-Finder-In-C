@@ -1,8 +1,8 @@
 maxTweeter.out: *.o
-	gcc -Wall -g -o maxTweeter.out *.o
+	gcc -g -o maxTweeter.out *.o
 
 *.o: *.c 
-	gcc -Wall -g -c *.c
+	gcc -g -c *.c
 
 clean:
 	rm -f maxTweeter.out *.o 
