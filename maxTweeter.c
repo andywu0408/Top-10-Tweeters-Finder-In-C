@@ -16,13 +16,6 @@ int cmpfunc (const void * a, const void * b);
 int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int final_freqs[]);
 
 
-struct Pair
-{
-   char* name; // Tweeter's name
-   int num_tweets; // Number of tweets made by this tweeter
-};
-
-
 int main (int argc, char* argv[]) {
     char* tweetersName[FILE_LINES_MAX]; // for storing name of all tweeters
     
