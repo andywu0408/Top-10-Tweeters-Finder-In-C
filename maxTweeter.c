@@ -15,6 +15,7 @@ void printTopTen(char* top_ten_names[], int top_ten_freqs[]);
 int cmpfunc (const void * a, const void * b);
 int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int final_freqs[]);
 
+// gdb note: p *final_freqs@100
 
 int main (int argc, char* argv[]) {
     char* tweetersName[FILE_LINES_MAX]; // for storing name of all tweeters
@@ -35,8 +36,11 @@ int main (int argc, char* argv[]) {
 	}
 
 	// Store first line 
-	char first_line[LINE_CHARS_MAX + 1];
-    if (fgets(first_line, LINE_CHARS_MAX + 1, file_ptr) == NULL){
+	char first_line[LINE_CHARS_MAX + 2]; // "+2" for potential overflow char + null term char
+    if (fgets(first_line, LINE_CHARS_MAX + 2, file_ptr) == NULL) { // fgets includes null-terminated char (strlen does not)
+        error(); 
+    } else if (strlen(first_line) > LINE_CHARS_MAX) { 
+        // if we read in more than 1024 chars
         error();
     }
 
@@ -71,12 +75,12 @@ void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[],
     int final_freqs[FILE_LINES_MAX]; // frequencies of tweets made by all individual tweeters
     int num_final_elements = fillNamesAndFreq(names, num_names, final_names, final_freqs);
     
-    // Sort frequencies in ascending order
+    // Sort frequencies in descending order
     qsort(final_freqs, num_final_elements, sizeof(int), cmpfunc);
     
     int counter = 0;
     
-    for(int i = num_final_elements - 1; i >= num_final_elements - 10; i--){ // get top ten highest
+    for(int i = 0; i < 10; i++) { // get top ten highest
         top_ten_names[counter] = final_names[i];
         top_ten_freqs[counter] = final_freqs[i];
         counter++;
@@ -84,14 +88,15 @@ void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[],
 }
 // Comparable function for qsort
 int cmpfunc (const void * a, const void * b) {
-   return ( *(int*)a - *(int*)b );
+   return ( *(int*)b - *(int*)a );
 }
 
 // helper function for fillTopTenNamesAndFreq function
 int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int final_freqs[]){
     int freq; // counter
     char* current;
-    int num_final_elements = 0;
+    int num_final_elements = 0; // unique names
+
     for(int i = 0; i < num_names; i++){
         if(strcmp(names[i], "") == 0){
             // skip because the element is repeated (we changed all repeated elements to empty string)
@@ -117,7 +122,7 @@ int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int fina
         }
     }
     
-    if(num_final_elements <= 0){
+    if (num_final_elements <= 0) {
         error();
     }
     
@@ -129,14 +134,19 @@ int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int fina
  Store names of all tweeters into tweetersName[] and return total number of names
  NOTE: The returned array may contain repeated names, or "empty" if no value given
 */
-int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[]){
-    char* line; // one line in file
-    char* temp;
+int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[]) {
+    char line[LINE_CHARS_MAX + 2]; // one line in file
+    char* temp; // store pointer to line
     int col_counter;
     int counter = 0;
     
     // get one line from file if not end of file yet
-    while(fgets(line, LINE_CHARS_MAX + 1, file_ptr ) != NULL ){
+    while(fgets(line, LINE_CHARS_MAX + 2, file_ptr ) != NULL ) {
+        if (strlen(line) > LINE_CHARS_MAX) { 
+            // if we read in more than 1024 chars
+            error();
+        }
+
         temp = strdup(line);
         col_counter = 1;
         char* token = strsep(&temp, ",");
