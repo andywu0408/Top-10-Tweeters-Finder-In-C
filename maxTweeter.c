@@ -97,15 +97,27 @@ int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int fina
     int freq; // counter
     char* current;
     int num_final_elements = 0; // unique names
+    int tweeter_name_length; 
 
     for(int i = 0; i < num_names; i++){
         if(strcmp(names[i], "") == 0){
             // skip because the element is repeated (we changed all repeated elements to empty string)
             continue; 
         } else {
-            freq = 0;
-            current = names[i];
-            freq++;
+            freq = 1; // initialize frequency to 1 
+            current = names[i]; // store current name
+            tweeter_name_length = strlen(names[i]); // store tweeter name length
+
+            // if the name is quoted properly, then remove them
+            if (names[i][0] == '\"' && 
+                names[i][tweeter_name_length - 1] == '\"') {
+                char unquoted_name[1024];
+                strncpy(unquoted_name, names[i] + 1, tweeter_name_length - 2);
+                printf("%s\n", unquoted_name);
+                current = unquoted_name;
+                printf("%s\n", current);
+            }
+
             for(int j = i + 1; j < num_names; j++){
                 if(strcmp(names[j], "") == 0){
                     // skip because the element is repeated (we changed all repeated elements to empty string)
