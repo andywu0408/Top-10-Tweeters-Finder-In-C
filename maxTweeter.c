@@ -4,6 +4,7 @@
 
 #define FILE_LINES_MAX 20000
 #define LINE_CHARS_MAX 1024
+#define TOP_NAMES 10
 
 void error();
 void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[]);
@@ -15,7 +16,7 @@ void printTopTen(char* top_ten_names[], int top_ten_freqs[]);
 int cmpfunc (const void * a, const void * b);
 int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int final_freqs[]);
 
-// gdb note: p *final_freqs@100
+// gdb note: p final_freqs[x]@10
 
 int main (int argc, char* argv[]) {
     char* tweetersName[FILE_LINES_MAX]; // for storing name of all tweeters
@@ -64,7 +65,7 @@ int main (int argc, char* argv[]) {
 }
 
 void printTopTen(char* top_ten_names[], int top_ten_freqs[]){
-    for(int i = 0; i < 10; i++){
+    for(int i = 0; i < TOP_NAMES; i++){
         printf("%s: %d\n", top_ten_names[i], top_ten_freqs[i]);
     }
 }
@@ -80,7 +81,7 @@ void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[],
     
     int counter = 0;
     
-    for(int i = 0; i < 10; i++) { // get top ten highest
+    for(int i = 0; i < TOP_NAMES; i++) { // get top ten highest
         top_ten_names[counter] = final_names[i];
         top_ten_freqs[counter] = final_freqs[i];
         counter++;
@@ -176,24 +177,37 @@ void error(){
 int getNameColumn (char* first_line) {
 	
 	int num_col = 0;
+    int name_flag = 0;
+
 	// Check if first line exists
 	if (first_line == NULL) {
 		error();
 	}
 	else {
-		// Search first line for "name" column
+		// Search first line for name column
 		char* token = strtok(first_line, ",");
 
-		// Iterate through comma separated values
+		// Looking for quoted "name" or unquoted name
 		char name_string[10] = "name";
+        char name_string_quoted[10] = "\"name\"";
+
+        // Iterate through comma separated values
 		for (int i = 0; token != NULL; i++) {
-			// Check string equality
-			if (strcmp(token, name_string) == 0) {
+			// Check string equality to either variant of name
+			if (strcmp(token, name_string) == 0 ||
+                strcmp(token, name_string_quoted) == 0) {
 				num_col = i;
+                name_flag = 1;
 			}
 			token = strtok(NULL, ",");
 		}
 	}
-	return num_col;
+
+    // if name was not found
+    if (name_flag == 0) {
+        error();
+    } else { // otherwise return column position of name
+	   return num_col;
+    }
 }
 
