@@ -6,11 +6,12 @@
 #define LINE_CHARS_MAX 1024
 #define TOP_NAMES 10
 
-void error();
-void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[]);
-int getNameColumn (char* first_line);
-int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[]);
+// main functions
 void printTopTen(char* top_ten_names[], int top_ten_freqs[]);
+void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[]);
+int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], int headerCount[]);
+int getNameColumn (char* first_line, int headerCount[]);
+void error();
 
 // helper functions
 int cmpfunc (const void * a, const void * b);
@@ -21,7 +22,9 @@ void quote_processor(char* tweeter_name);
 
 int main (int argc, char* argv[]) {
     char* tweetersName[FILE_LINES_MAX]; // for storing name of all tweeters
-    
+    int headerCount[1]; // for storing how many header fields we have
+    headerCount[0] = 0;
+
 	// Check for valid program input
 	// Must have 1 command line argument (filename)
 	if (argc != 2) {
@@ -47,10 +50,10 @@ int main (int argc, char* argv[]) {
     }
 
 	// Get column position of "name" 
-	int num_col = getNameColumn(first_line);
+	int num_col = getNameColumn(first_line, headerCount);
 
     // Fill tweetersName array with all names, may have repeated names,
-    int num_names = getTweetersName(file_ptr, num_col, tweetersName); // total number of names
+    int num_names = getTweetersName(file_ptr, num_col, tweetersName, headerCount); // total number of names
     
     // Store top 10
     char* top_ten_names[10]; // top 10 tweeters with most tweets
@@ -88,6 +91,7 @@ void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[],
         counter++;
     };
 }
+
 // Comparable function for qsort
 int cmpfunc (const void * a, const void * b) {
    return ( *(int*)b - *(int*)a );
@@ -175,7 +179,7 @@ void quote_processor(char* tweeter_name) {
  Store names of all tweeters into tweetersName[] and return total number of names
  NOTE: The returned array may contain repeated names, or "empty" if no value given
 */
-int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[]) {
+int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], int headerCount[]) {
     char line[LINE_CHARS_MAX + 2]; // one line in file
     char* temp; // store pointer to line
     int col_counter;
@@ -189,27 +193,33 @@ int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[]) {
         }
 
         temp = strdup(line);
-        col_counter = 1;
+        col_counter = 0;
         char* token = strsep(&temp, ",");
         // get name of tweeter from this line of file
         while(token != NULL){
-            if(col_counter == num_col + 1){ // if at the name column
+            if(col_counter == num_col){ // if at the name column
                 if(strcmp(token, "") == 0){ // name is "empty" if receive empty value
                     token = "empty";
                 }
                 tweetersName[counter] = token;
-                break;
+                //break;
             }
             token = strsep(&temp, ",");
             col_counter++;
         }
         counter++;
+
+        // validate that we have same amount of content fields as header fields
+        if (col_counter != headerCount[0]) {
+            error();
+        }
+        
     }
     return counter;
 }
 
 // Get the column number for names
-int getNameColumn (char* first_line) {
+int getNameColumn (char* first_line, int headerCount[]) {
 	
 	int num_col = 0;
     int name_flag = 0;
@@ -227,23 +237,21 @@ int getNameColumn (char* first_line) {
 		char name_string[10] = "name";
         char name_string_windows[10] = "name\r\n";
         char name_string_linux[10] = "name\n";
-        char name_string_quoted[10] = "\"name\"";
-        char name_string_quoted_windows[10] = "\"name\"\r\n";
-        char name_string_quoted_linux[10] = "\"name\"\n";
 
         // Iterate through comma separated values
 		for (int i = 0; token != NULL; i++) {
+            // quote validation & removal
+            quote_processor(token);
+
 			// Check string equality to either variant of name
 			if (strcmp(token, name_string) == 0 ||
                 strcmp(token, name_string_windows) == 0 ||
-                strcmp(token, name_string_linux) == 0 ||
-                strcmp(token, name_string_quoted) == 0 ||
-                strcmp(token, name_string_quoted_windows) == 0 ||
-                strcmp(token, name_string_quoted_linux) == 0) {
+                strcmp(token, name_string_linux) == 0) {
 				num_col = i;
                 name_flag = 1;
 			}
 			token = strtok(NULL, ",");
+            headerCount[0]++; // increment header fields
 		}
 	}
 
@@ -251,7 +259,7 @@ int getNameColumn (char* first_line) {
     if (name_flag == 0) {
         error();
     } else { // otherwise return column position of name
-	   return num_col;
+	    return num_col;
     }
 }
 
