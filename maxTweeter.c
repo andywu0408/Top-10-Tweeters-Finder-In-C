@@ -15,6 +15,7 @@ void printTopTen(char* top_ten_names[], int top_ten_freqs[]);
 // helper functions
 int cmpfunc (const void * a, const void * b);
 int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int final_freqs[]);
+void quote_processor(char* tweeter_name);
 
 // gdb note: p final_freqs[x]@10
 
@@ -106,24 +107,20 @@ int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int fina
         } else {
             freq = 1; // initialize frequency to 1 
             current = names[i]; // store current name
-            tweeter_name_length = strlen(names[i]); // store tweeter name length
 
-            // if the name is quoted properly, then remove them
-            if (names[i][0] == '\"' && 
-                names[i][tweeter_name_length - 1] == '\"') {
-                char unquoted_name[1024];
-                strncpy(unquoted_name, names[i] + 1, tweeter_name_length - 2);
-                printf("%s\n", unquoted_name);
-                current = unquoted_name;
-                printf("%s\n", current);
-            }
+            // check quoting of name
+            quote_processor(names[i]);
 
-            for(int j = i + 1; j < num_names; j++){
-                if(strcmp(names[j], "") == 0){
+            for (int j = i + 1; j < num_names; j++) {
+
+                // check quoting of compared name
+                quote_processor(names[j]);
+
+                if (strcmp(names[j], "") == 0){
                     // skip because the element is repeated (we changed all repeated elements to empty string)
                     continue;
                 }
-                if(strcmp(current, names[j]) == 0){ // find another occurence of the element
+                if (strcmp(current, names[j]) == 0) { // find another occurence of the element
                     freq++;
                     // change it to empty string, so we can handle this repeated value when we encounter it later on
                     strcpy(names[j], "");
@@ -140,6 +137,37 @@ int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int fina
     }
     
     return num_final_elements;
+}
+
+/* quote validation helper function
+    1. validate that we have an even amount of quotes
+    2. strip off outer layer of quotes directly from names pointer
+*/
+void quote_processor(char* tweeter_name) {
+    // store length of name
+    int tweeter_name_length = strlen(tweeter_name);
+
+    // check how many quotes in a name
+    int quote_count = 0;
+    for (int i = 0; i < tweeter_name_length; i++) {
+        if (tweeter_name[i] == '\"') {
+            quote_count++;
+        }
+    }
+
+    // if uneven number of quotes, then error 
+    if (quote_count % 2 == 1) {
+        error();
+    }
+
+    // if the name is quoted properly, then remove them
+    if (tweeter_name[0] == '\"' && 
+        tweeter_name[tweeter_name_length - 1] == '\"') {
+        // copy unquoted portion over
+        strncpy(tweeter_name, tweeter_name + 1, tweeter_name_length - 2);
+        // cut off oustanding quote with a null terminator
+        tweeter_name[tweeter_name_length - 2] = '\0';
+    }
 }
 
 
@@ -180,11 +208,6 @@ int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[]) {
     return counter;
 }
 
-void error(){
-    printf("Invalid Input Format");
-    exit(1); // unsuccessful exit
-}
-
 // Get the column number for names
 int getNameColumn (char* first_line) {
 	
@@ -200,14 +223,23 @@ int getNameColumn (char* first_line) {
 		char* token = strtok(first_line, ",");
 
 		// Looking for quoted "name" or unquoted name
+        // In either Windows/Linux file format, since "name" could be the last column
 		char name_string[10] = "name";
+        char name_string_windows[10] = "name\r\n";
+        char name_string_linux[10] = "name\n";
         char name_string_quoted[10] = "\"name\"";
+        char name_string_quoted_windows[10] = "\"name\"\r\n";
+        char name_string_quoted_linux[10] = "\"name\"\n";
 
         // Iterate through comma separated values
 		for (int i = 0; token != NULL; i++) {
 			// Check string equality to either variant of name
 			if (strcmp(token, name_string) == 0 ||
-                strcmp(token, name_string_quoted) == 0) {
+                strcmp(token, name_string_windows) == 0 ||
+                strcmp(token, name_string_linux) == 0 ||
+                strcmp(token, name_string_quoted) == 0 ||
+                strcmp(token, name_string_quoted_windows) == 0 ||
+                strcmp(token, name_string_quoted_linux) == 0) {
 				num_col = i;
                 name_flag = 1;
 			}
@@ -223,3 +255,7 @@ int getNameColumn (char* first_line) {
     }
 }
 
+void error(){
+    printf("Invalid Input Format");
+    exit(1); // unsuccessful exit
+}
