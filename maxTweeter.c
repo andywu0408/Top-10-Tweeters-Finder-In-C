@@ -7,8 +7,8 @@
 #define TOP_NAMES 10
 
 // main functions
-void printTopTen(char* top_ten_names[], int top_ten_freqs[]);
-void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[]);
+void printTopTen(char* top_ten_names[], int top_ten_freqs[], int total_names);
+void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[], int total_names);
 int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], int headerCount[]);
 int getNameColumn (char* first_line, int headerCount[]);
 void error();
@@ -21,9 +21,10 @@ void quote_processor(char* tweeter_name);
 // gdb note: p final_freqs[x]@10
 
 int main (int argc, char* argv[]) {
-    char* tweetersName[FILE_LINES_MAX]; // for storing name of all tweeters
+    char* tweetersName[FILE_LINES_MAX]; // for storing names of all tweeters
     int headerCount[1]; // for storing how many header fields we have
     headerCount[0] = 0;
+    int total_names = 0; // for storing minimum amount of names to print
 
 	// Check for valid program input
 	// Must have 1 command line argument (filename)
@@ -59,23 +60,30 @@ int main (int argc, char* argv[]) {
     char* top_ten_names[10]; // top 10 tweeters with most tweets
     int top_ten_freqs[10]; // frequencies of tweets made by top 10 tweeters
     
+    // Check how many names to print (10 or less)
+    if (num_names < TOP_NAMES) {
+        total_names = num_names;
+    } else {
+        total_names = TOP_NAMES;
+    }
+
     // Get names and frequencies of 10 different tweeters who made most tweets
-    fillTopTenNamesAndFreq(tweetersName, num_names, top_ten_names, top_ten_freqs);
+    fillTopTenNamesAndFreq(tweetersName, num_names, top_ten_names, top_ten_freqs, total_names);
     
     // Print the names and frequencies of top 10 tweeters
-    printTopTen(top_ten_names, top_ten_freqs);
+    printTopTen(top_ten_names, top_ten_freqs, total_names);
     
     fclose(file_ptr);
 }
 
-void printTopTen(char* top_ten_names[], int top_ten_freqs[]){
-    for(int i = 0; i < TOP_NAMES; i++){
+void printTopTen(char* top_ten_names[], int top_ten_freqs[], int total_names) {
+    for(int i = 0; i < total_names; i++){
         printf("%s: %d\n", top_ten_names[i], top_ten_freqs[i]);
     }
 }
 
 // Get names and frequencies of 10 different tweeters who made most tweets
-void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[]){
+void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[], int total_names) {
     char* final_names[FILE_LINES_MAX]; // all names of tweeters, with no repeated element
     int final_freqs[FILE_LINES_MAX]; // frequencies of tweets made by all individual tweeters
     int num_final_elements = fillNamesAndFreq(names, num_names, final_names, final_freqs);
@@ -83,12 +91,10 @@ void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[],
     // Sort frequencies in descending order
     qsort(final_freqs, num_final_elements, sizeof(int), cmpfunc);
     
-    int counter = 0;
-    
-    for(int i = 0; i < TOP_NAMES; i++) { // get top ten highest
-        top_ten_names[counter] = final_names[i];
-        top_ten_freqs[counter] = final_freqs[i];
-        counter++;
+    // fill in top ten or less
+    for (int i = 0; i < total_names; i++) {
+        top_ten_names[i] = final_names[i];
+        top_ten_freqs[i] = final_freqs[i];
     };
 }
 
@@ -202,6 +208,7 @@ int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], int heade
                     token = "empty";
                 }
                 tweetersName[counter] = token;
+                //printf("token %s", token);
                 //break;
             }
             token = strsep(&temp, ",");
@@ -209,11 +216,15 @@ int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], int heade
         }
         counter++;
 
+        // if more than 20,000 lines, then error
+        if (counter > FILE_LINES_MAX - 1) {
+            error();
+        }
+
         // validate that we have same amount of content fields as header fields
         if (col_counter != headerCount[0]) {
             error();
         }
-        
     }
     return counter;
 }
