@@ -181,6 +181,49 @@ void quote_processor(char* tweeter_name) {
 }
 
 
+/* outter quote validation helper function
+    1. validate that we have same number of outter quotes (leading and trailing quotes)
+    2. If match, strip off outtermost quotes directly from names pointer
+*/
+void outterQuoteProcessor(char* str) {
+//    // store length of name
+    int str_length = strlen(str);
+    int leading_qm = 0;
+    int trailing_qm = 0; //qm = quotation marks
+
+    // count number of leading quotation marks
+    for(int i = 0; i < str_length; i++){
+        if(str[i] == '"'){ // skip
+            leading_qm++;
+        } else {
+            break;
+        }
+    }
+    // count number of trailing quotation marks
+    for(int i = str_length-1; i > 0; i++){
+        if(str[i] == '"'){ // skip
+            trailing_qm++;
+        } else {
+            break;
+        }
+    }
+    
+    if(leading_qm != trailing_qm){ // if leading & trailing quotation marks don't match, this is invalid field
+        //printf("Error occured on (word: %s) with (leading qm: %d) and (trailing: %d)\n", str, leading_qm, trailing_qm);
+        error();
+    } else if(leading_qm == 0 & trailing_qm == 0){ // else if no outter quotation marks
+        return; // do nothing
+    }
+    else { // else is valid field
+        // strips out outtermost quotation marks
+        for(int i = 0; i < str_length; i++){
+            str[i-1] = str[i];
+        }
+        str[str_length - 1] = '\0';
+    }
+}
+
+
 /*
  Store names of all tweeters into tweetersName[] and return total number of names
  NOTE: The returned array may contain repeated names, or "empty" if no value given
@@ -272,6 +315,7 @@ int getNameColumn (char* first_line, int headerCount[]) {
     } else { // otherwise return column position of name
 	    return num_col;
     }
+    return num_col;
 }
 
 void error(){
