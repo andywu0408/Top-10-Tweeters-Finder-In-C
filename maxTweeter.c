@@ -1,30 +1,40 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define FILE_LINES_MAX 20000
 #define LINE_CHARS_MAX 1024
 #define TOP_NAMES 10
 
+// csv information tracking
+struct csvInformation {
+    bool quoted_header; // for storing whether the header is quoted
+    int header_count; // for storing how many header fields we have
+    int total_names; // for storing minimum amount of names to print
+};
+
 // main functions
-void printTopTen(char* top_ten_names[], int top_ten_freqs[], int total_names);
-void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[], int total_names);
-int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], int headerCount[]);
-int getNameColumn (char* first_line, int headerCount[]);
-void error();
+void printTopTen(char* top_ten_names[], int top_ten_freqs[], struct csvInformation* csvInfo);
+void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[], struct csvInformation* csvInfo);
+int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], struct csvInformation* csvInfo);
+int getNameColumn (char* first_line, struct csvInformation* csvInfo);
 
 // helper functions
-int cmpfunc (const void * a, const void * b);
-int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int final_freqs[]);
-void outerQuoteProcessor(char* str);
+int cmpfunc(const void * a, const void * b);
+int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int final_freqs[], struct csvInformation* csvInfo);
+void outerQuoteProcessor(char* str, struct csvInformation* csvInfo);
+void error();
 
 // gdb note: p final_freqs[x]@10
 
 int main (int argc, char* argv[]) {
-    char* tweetersName[FILE_LINES_MAX]; // for storing names of all tweeters
-    int headerCount[1]; // for storing how many header fields we have
-    headerCount[0] = 0;
-    int total_names = 0; // for storing minimum amount of names to print
+
+    // declare & initialize struct
+    struct csvInformation csvInfo = {false, 0, 0};
+
+    // for storing names of all tweeters
+    char* tweetersName[FILE_LINES_MAX]; 
 
     // Check for valid program input
     // Must have 1 command line argument (filename)
@@ -51,10 +61,10 @@ int main (int argc, char* argv[]) {
     }
 
     // Get column position of "name" 
-    int num_col = getNameColumn(first_line, headerCount);
+    int num_col = getNameColumn(first_line, &csvInfo);
 
     // Fill tweetersName array with all names, may have repeated names,
-    int num_names = getTweetersName(file_ptr, num_col, tweetersName, headerCount); // total number of names
+    int num_names = getTweetersName(file_ptr, num_col, tweetersName, &csvInfo); // total number of names
     
     // Store top 10
     char* top_ten_names[10]; // top 10 tweeters with most tweets
@@ -62,37 +72,37 @@ int main (int argc, char* argv[]) {
     
     // Check how many names to print (10 or less)
     if (num_names < TOP_NAMES) {
-        total_names = num_names;
+        csvInfo.total_names = num_names;
     } else {
-        total_names = TOP_NAMES;
+        csvInfo.total_names = TOP_NAMES;
     }
 
     // Get names and frequencies of 10 different tweeters who made most tweets
-    fillTopTenNamesAndFreq(tweetersName, num_names, top_ten_names, top_ten_freqs, total_names);
+    fillTopTenNamesAndFreq(tweetersName, num_names, top_ten_names, top_ten_freqs, &csvInfo);
     
     // Print the names and frequencies of top 10 tweeters
-    printTopTen(top_ten_names, top_ten_freqs, total_names);
+    printTopTen(top_ten_names, top_ten_freqs, &csvInfo);
     
     fclose(file_ptr);
 }
 
-void printTopTen(char* top_ten_names[], int top_ten_freqs[], int total_names) {
-    for(int i = 0; i < total_names; i++){
+void printTopTen(char* top_ten_names[], int top_ten_freqs[], struct csvInformation* csvInfo) {
+    for(int i = 0; i < csvInfo->total_names; i++){
         printf("%s: %d\n", top_ten_names[i], top_ten_freqs[i]);
     }
 }
 
 // Get names and frequencies of 10 different tweeters who made most tweets
-void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[], int total_names) {
+void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[], struct csvInformation* csvInfo) {
     char* final_names[FILE_LINES_MAX]; // all names of tweeters, with no repeated element
     int final_freqs[FILE_LINES_MAX]; // frequencies of tweets made by all individual tweeters
-    int num_final_elements = fillNamesAndFreq(names, num_names, final_names, final_freqs);
+    int num_final_elements = fillNamesAndFreq(names, num_names, final_names, final_freqs, csvInfo);
     
     // Sort frequencies in descending order
     qsort(final_freqs, num_final_elements, sizeof(int), cmpfunc);
     
     // fill in top ten or less
-    for (int i = 0; i < total_names; i++) {
+    for (int i = 0; i < csvInfo->total_names; i++) {
         top_ten_names[i] = final_names[i];
         top_ten_freqs[i] = final_freqs[i];
     };
@@ -104,7 +114,7 @@ int cmpfunc (const void * a, const void * b) {
 }
 
 // helper function for fillTopTenNamesAndFreq function
-int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int final_freqs[]){
+int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int final_freqs[], struct csvInformation* csvInfo) {
     int freq; // counter
     char* current;
     int num_final_elements = 0; // unique names
@@ -119,14 +129,14 @@ int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int fina
             current = names[i]; // store current name
 
             // check quoting of name
-            outerQuoteProcessor(names[i]);
+            outerQuoteProcessor(names[i], csvInfo);
             
             for (int j = i + 1; j < num_names; j++) {
 
                 // check quoting of compared name
-                outerQuoteProcessor(names[j]);
+                outerQuoteProcessor(names[j], csvInfo);
                 
-                if (strcmp(names[j], "") == 0){
+                if (strcmp(names[j], "") == 0) {
                     // skip because the element is repeated (we changed all repeated elements to empty string)
                     continue;
                 }
@@ -153,7 +163,7 @@ int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int fina
     1. validate that we have same number of outer quotes (leading and trailing quotes)
     2. If match, strip off outermost quotes directly from names pointer
 */
-void outerQuoteProcessor(char* str) {
+void outerQuoteProcessor(char* str, struct csvInformation* csvInfo) {
     // store length of name
     int str_length = strlen(str);
     int leading_qm = 0;
@@ -176,16 +186,28 @@ void outerQuoteProcessor(char* str) {
         }
     }
     
-    if(leading_qm != trailing_qm){ // if leading & trailing quotation marks don't match, this is invalid field
+    if(leading_qm != trailing_qm){ // if quotes mismatch, then error
         //printf("Error occured on (word: %s) with (leading qm: %d) and (trailing: %d)\n", str, leading_qm, trailing_qm);
         error();
-    } else if(leading_qm == 0 & trailing_qm == 0){ // else if no outter quotation marks
-        return; // do nothing
+    } else if(leading_qm == 0 & trailing_qm == 0){ // else if no outer quotes
+        
+        // if name header is not quoted, then error
+        if (csvInfo->quoted_header == true) {
+            error();
+        }
+        return; 
     }
-    else { // else is valid field
+    else { // else quotes match
+
+        // if name header is quoted, then error
+        if (csvInfo->quoted_header == false) {
+            error();
+        }
+
+        // otherwise, name header has quotes, then we remove quotes from tweeter name
         // copy unquoted portion over
         strncpy(str, str + 1, str_length - 2);
-        // cut off oustanding quote with a null terminator
+        // cut off oustanding quote with a null terminator and store
         str[str_length - 2] = '\0';
         //printf("str %s\n", str);
     }
@@ -196,7 +218,7 @@ void outerQuoteProcessor(char* str) {
  Store names of all tweeters into tweetersName[] and return total number of names
  NOTE: The returned array may contain repeated names, or "empty" if no value given
 */
-int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], int headerCount[]) {
+int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], struct csvInformation* csvInfo) {
     char line[LINE_CHARS_MAX + 2]; // one line in file
     char* temp; // store pointer to line
     int col_counter;
@@ -233,7 +255,7 @@ int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], int heade
         }
 
         // validate that we have same amount of content fields as header fields
-        if (col_counter != headerCount[0]) {
+        if (col_counter != csvInfo->header_count) {
             error();
         }
     }
@@ -241,7 +263,7 @@ int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], int heade
 }
 
 // Get the column number for names
-int getNameColumn (char* first_line, int headerCount[]) {
+int getNameColumn (char* first_line, struct csvInformation* csvInfo) {
     
     int num_col = 0;
     int name_flag = 0;
@@ -259,21 +281,31 @@ int getNameColumn (char* first_line, int headerCount[]) {
         char name_string[10] = "name";
         char name_string_windows[10] = "name\r\n";
         char name_string_linux[10] = "name\n";
+        char name_string_quoted[10] = "\"name\"";
+        char name_string_quoted_windows[10] = "\"name\"\r\n";
+        char name_string_quoted_linux[10] = "\"name\"\n";
 
-        // Iterate through comma separated values
+        // Iterate through comma separated fields
         for (int i = 0; token != NULL; i++) {
-            // quote validation & removal
-            outerQuoteProcessor(token);
 
             // Check string equality to either variant of name
+            // Unquoted name
             if (strcmp(token, name_string) == 0 ||
                 strcmp(token, name_string_windows) == 0 ||
                 strcmp(token, name_string_linux) == 0) {
                 num_col = i;
                 name_flag = 1;
+                csvInfo->quoted_header = false;
+            // Quoted "name"
+            } else if (strcmp(token, name_string_quoted) == 0 ||
+                       strcmp(token, name_string_quoted_windows) == 0 ||
+                       strcmp(token, name_string_quoted_linux) == 0) {
+                num_col = i;
+                name_flag = 1;
+                csvInfo->quoted_header = true;
             }
-            token = strtok(NULL, ",");
-            headerCount[0]++; // increment header fields
+            token = strtok(NULL, ","); // read next field
+            csvInfo->header_count++; // increment header fields
         }
     }
 
