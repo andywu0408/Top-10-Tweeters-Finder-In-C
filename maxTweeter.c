@@ -16,7 +16,7 @@ void error();
 // helper functions
 int cmpfunc (const void * a, const void * b);
 int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int final_freqs[]);
-void quote_processor(char* tweeter_name);
+void outerQuoteProcessor(char* str);
 
 // gdb note: p final_freqs[x]@10
 
@@ -26,23 +26,23 @@ int main (int argc, char* argv[]) {
     headerCount[0] = 0;
     int total_names = 0; // for storing minimum amount of names to print
 
-	// Check for valid program input
-	// Must have 1 command line argument (filename)
-	if (argc != 2) {
-		error();
-	}
+    // Check for valid program input
+    // Must have 1 command line argument (filename)
+    if (argc != 2) {
+        error();
+    }
 
-	// Store and open file
-	const char* file_name = argv[1];
-	FILE* file_ptr = fopen(file_name, "r");
+    // Store and open file
+    const char* file_name = argv[1];
+    FILE* file_ptr = fopen(file_name, "r");
 
-	// Check if file exists
-	if (file_ptr == NULL) {
-		error();
-	}
+    // Check if file exists
+    if (file_ptr == NULL) {
+        error();
+    }
 
-	// Store first line 
-	char first_line[LINE_CHARS_MAX + 2]; // "+2" for potential overflow char + null term char
+    // Store first line 
+    char first_line[LINE_CHARS_MAX + 2]; // "+2" for potential overflow char + null term char
     if (fgets(first_line, LINE_CHARS_MAX + 2, file_ptr) == NULL) { // fgets includes null-terminated char (strlen does not)
         error(); 
     } else if (strlen(first_line) > LINE_CHARS_MAX) { 
@@ -50,8 +50,8 @@ int main (int argc, char* argv[]) {
         error();
     }
 
-	// Get column position of "name" 
-	int num_col = getNameColumn(first_line, headerCount);
+    // Get column position of "name" 
+    int num_col = getNameColumn(first_line, headerCount);
 
     // Fill tweetersName array with all names, may have repeated names,
     int num_names = getTweetersName(file_ptr, num_col, tweetersName, headerCount); // total number of names
@@ -119,13 +119,13 @@ int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int fina
             current = names[i]; // store current name
 
             // check quoting of name
-            quote_processor(names[i]);
-
+            outerQuoteProcessor(names[i]);
+            
             for (int j = i + 1; j < num_names; j++) {
 
                 // check quoting of compared name
-                quote_processor(names[j]);
-
+                outerQuoteProcessor(names[j]);
+                
                 if (strcmp(names[j], "") == 0){
                     // skip because the element is repeated (we changed all repeated elements to empty string)
                     continue;
@@ -149,44 +149,12 @@ int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int fina
     return num_final_elements;
 }
 
-/* quote validation helper function
-    1. validate that we have an even amount of quotes
-    2. strip off outer layer of quotes directly from names pointer
+/* outer quote validation helper function
+    1. validate that we have same number of outer quotes (leading and trailing quotes)
+    2. If match, strip off outermost quotes directly from names pointer
 */
-void quote_processor(char* tweeter_name) {
+void outerQuoteProcessor(char* str) {
     // store length of name
-    int tweeter_name_length = strlen(tweeter_name);
-
-    // check how many quotes in a name
-    int quote_count = 0;
-    for (int i = 0; i < tweeter_name_length; i++) {
-        if (tweeter_name[i] == '\"') {
-            quote_count++;
-        }
-    }
-
-    // if uneven number of quotes, then error 
-    if (quote_count % 2 == 1) {
-        error();
-    }
-
-    // if the name is quoted properly, then remove them
-    if (tweeter_name[0] == '\"' && 
-        tweeter_name[tweeter_name_length - 1] == '\"') {
-        // copy unquoted portion over
-        strncpy(tweeter_name, tweeter_name + 1, tweeter_name_length - 2);
-        // cut off oustanding quote with a null terminator
-        tweeter_name[tweeter_name_length - 2] = '\0';
-    }
-}
-
-
-/* outter quote validation helper function
-    1. validate that we have same number of outter quotes (leading and trailing quotes)
-    2. If match, strip off outtermost quotes directly from names pointer
-*/
-void outterQuoteProcessor(char* str) {
-//    // store length of name
     int str_length = strlen(str);
     int leading_qm = 0;
     int trailing_qm = 0; //qm = quotation marks
@@ -200,7 +168,7 @@ void outterQuoteProcessor(char* str) {
         }
     }
     // count number of trailing quotation marks
-    for(int i = str_length-1; i > 0; i++){
+    for(int i = str_length-1; i >= 0; i--){
         if(str[i] == '"'){ // skip
             trailing_qm++;
         } else {
@@ -215,11 +183,11 @@ void outterQuoteProcessor(char* str) {
         return; // do nothing
     }
     else { // else is valid field
-        // strips out outtermost quotation marks
-        for(int i = 0; i < str_length; i++){
-            str[i-1] = str[i];
-        }
-        str[str_length - 1] = '\0';
+        // copy unquoted portion over
+        strncpy(str, str + 1, str_length - 2);
+        // cut off oustanding quote with a null terminator
+        str[str_length - 2] = '\0';
+        //printf("str %s\n", str);
     }
 }
 
@@ -274,46 +242,46 @@ int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], int heade
 
 // Get the column number for names
 int getNameColumn (char* first_line, int headerCount[]) {
-	
-	int num_col = 0;
+    
+    int num_col = 0;
     int name_flag = 0;
 
-	// Check if first line exists
-	if (first_line == NULL) {
-		error();
-	}
-	else {
-		// Search first line for name column
-		char* token = strtok(first_line, ",");
+    // Check if first line exists
+    if (first_line == NULL) {
+        error();
+    }
+    else {
+        // Search first line for name column
+        char* token = strtok(first_line, ",");
 
-		// Looking for quoted "name" or unquoted name
+        // Looking for quoted "name" or unquoted name
         // In either Windows/Linux file format, since "name" could be the last column
-		char name_string[10] = "name";
+        char name_string[10] = "name";
         char name_string_windows[10] = "name\r\n";
         char name_string_linux[10] = "name\n";
 
         // Iterate through comma separated values
-		for (int i = 0; token != NULL; i++) {
+        for (int i = 0; token != NULL; i++) {
             // quote validation & removal
-            quote_processor(token);
+            outerQuoteProcessor(token);
 
-			// Check string equality to either variant of name
-			if (strcmp(token, name_string) == 0 ||
+            // Check string equality to either variant of name
+            if (strcmp(token, name_string) == 0 ||
                 strcmp(token, name_string_windows) == 0 ||
                 strcmp(token, name_string_linux) == 0) {
-				num_col = i;
+                num_col = i;
                 name_flag = 1;
-			}
-			token = strtok(NULL, ",");
+            }
+            token = strtok(NULL, ",");
             headerCount[0]++; // increment header fields
-		}
-	}
+        }
+    }
 
     // if name was not found
     if (name_flag == 0) {
         error();
     } else { // otherwise return column position of name
-	    return num_col;
+        return num_col;
     }
     return num_col;
 }
