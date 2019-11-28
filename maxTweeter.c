@@ -66,16 +66,9 @@ int main (int argc, char* argv[]) {
     // Fill tweetersName array with all names, may have repeated names,
     int num_names = getTweetersName(file_ptr, num_col, tweetersName, &csvInfo); // total number of names
     
-    // Store top 10
+    // Declare top 10 tweeter/frequency array structures
     char* top_ten_names[10]; // top 10 tweeters with most tweets
     int top_ten_freqs[10]; // frequencies of tweets made by top 10 tweeters
-    
-    // Check how many names to print (10 or less)
-    if (num_names < TOP_NAMES) {
-        csvInfo.total_names = num_names;
-    } else {
-        csvInfo.total_names = TOP_NAMES;
-    }
 
     // Get names and frequencies of 10 different tweeters who made most tweets
     fillTopTenNamesAndFreq(tweetersName, num_names, top_ten_names, top_ten_freqs, &csvInfo);
@@ -87,8 +80,20 @@ int main (int argc, char* argv[]) {
 }
 
 void printTopTen(char* top_ten_names[], int top_ten_freqs[], struct csvInformation* csvInfo) {
-    for(int i = 0; i < csvInfo->total_names; i++){
-        printf("%s: %d\n", top_ten_names[i], top_ten_freqs[i]);
+    
+    // if name header is quoted, then remove quotes before printing
+    if (csvInfo->quoted_header == true) {
+        // for names to be printed
+        for (int i = 0; i < csvInfo->total_names; i++) {
+            int tweeter_name_length = strlen(top_ten_names[i]); // length of name
+            strncpy(top_ten_names[i], top_ten_names[i] + 1, tweeter_name_length); // copy unquoted portion over
+            top_ten_names[i][ tweeter_name_length - 2 ] = '\0'; // cut off remaining quoted part with null terminator
+            printf("%s: %d\n", top_ten_names[i], top_ten_freqs[i]); // print
+        }   
+    } else { // otherwise, print normally
+        for (int i = 0; i < csvInfo->total_names; i++){
+            printf("%s: %d\n", top_ten_names[i], top_ten_freqs[i]);
+        }
     }
 }
 
@@ -96,11 +101,32 @@ void printTopTen(char* top_ten_names[], int top_ten_freqs[], struct csvInformati
 void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[], struct csvInformation* csvInfo) {
     char* final_names[FILE_LINES_MAX]; // all names of tweeters, with no repeated element
     int final_freqs[FILE_LINES_MAX]; // frequencies of tweets made by all individual tweeters
+    
+    // Initialize frequencies to 0
+    for (int i = 0; i < 10; i++) {
+        final_freqs[i] = 0;
+    }
+
     int num_final_elements = fillNamesAndFreq(names, num_names, final_names, final_freqs, csvInfo);
     
     // Sort frequencies in descending order
     qsort(final_freqs, num_final_elements, sizeof(int), cmpfunc);
     
+    // Check how many names to print (10 or less)
+    // 1. Do we have at least 10 tweeter names
+    int names_to_print = 0;
+    for (int i = 0; i < 10; i++) {
+        // if frequency is not 0, then increment
+        if (final_freqs[i] != 0) { 
+            names_to_print++;
+        }
+    } // 2. If we have less than 10 names, then make sure we print only that many
+    if (num_names < TOP_NAMES) {
+        csvInfo->total_names = names_to_print;
+    } else {
+        csvInfo->total_names = TOP_NAMES;
+    }
+
     // fill in top ten or less
     for (int i = 0; i < csvInfo->total_names; i++) {
         top_ten_names[i] = final_names[i];
@@ -128,19 +154,21 @@ int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int fina
             freq = 1; // initialize frequency to 1 
             current = names[i]; // store current name
 
-            // check quoting of name
+            // check quoting of current name
             outerQuoteProcessor(names[i], csvInfo);
             
             for (int j = i + 1; j < num_names; j++) {
 
-                // check quoting of compared name
+                // if name is empty string
+                if (strcmp(names[j], "") == 0) {
+                    continue; // then skip (we changed all repeated elements to empty string)
+                }
+
+                // check quoting of compared (next) name
                 outerQuoteProcessor(names[j], csvInfo);
                 
-                if (strcmp(names[j], "") == 0) {
-                    // skip because the element is repeated (we changed all repeated elements to empty string)
-                    continue;
-                }
-                if (strcmp(current, names[j]) == 0) { // find another occurence of the element
+                // if name is repeated
+                if (strcmp(current, names[j]) == 0) { 
                     freq++;
                     // change it to empty string, so we can handle this repeated value when we encounter it later on
                     strcpy(names[j], "");
@@ -186,16 +214,15 @@ void outerQuoteProcessor(char* str, struct csvInformation* csvInfo) {
         }
     }
     
-    if(leading_qm != trailing_qm){ // if quotes mismatch, then error
+    if (leading_qm != trailing_qm) { // if quotes mismatch, then error
         //printf("Error occured on (word: %s) with (leading qm: %d) and (trailing: %d)\n", str, leading_qm, trailing_qm);
         error();
-    } else if(leading_qm == 0 & trailing_qm == 0){ // else if no outer quotes
+    } else if (leading_qm == 0 & trailing_qm == 0) { // else if no outer quotes
         
         // if name header is not quoted, then error
         if (csvInfo->quoted_header == true) {
             error();
         }
-        return; 
     }
     else { // else quotes match
 
@@ -203,13 +230,6 @@ void outerQuoteProcessor(char* str, struct csvInformation* csvInfo) {
         if (csvInfo->quoted_header == false) {
             error();
         }
-
-        // otherwise, name header has quotes, then we remove quotes from tweeter name
-        // copy unquoted portion over
-        strncpy(str, str + 1, str_length - 2);
-        // cut off oustanding quote with a null terminator and store
-        str[str_length - 2] = '\0';
-        //printf("str %s\n", str);
     }
 }
 
@@ -241,8 +261,6 @@ int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], struct cs
                     token = "empty";
                 }
                 tweetersName[counter] = token;
-                //printf("token %s", token);
-                //break;
             }
             token = strsep(&temp, ",");
             col_counter++;
