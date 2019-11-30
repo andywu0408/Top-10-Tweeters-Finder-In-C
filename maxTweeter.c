@@ -10,6 +10,9 @@
 // csv information tracking
 struct csvInformation {
     bool quoted_header; // for storing whether the header is quoted
+    bool newline_quoted_flag; // for storing whether the header is quoted AND has a newline
+    bool windows_flag; // for storing whether the header has a Windows style newline (quoted)
+    bool linux_flag; // for storing whether the header has a Linux style newline (quoted)
     int header_count; // for storing how many header fields we have
     int total_names; // for storing minimum amount of names to print
 };
@@ -86,6 +89,15 @@ void printTopTen(char* top_ten_names[], int top_ten_freqs[], struct csvInformati
         // for names to be printed
         for (int i = 0; i < csvInfo->total_names; i++) {
             int tweeter_name_length = strlen(top_ten_names[i]); // length of name
+
+            // if windows new line, we must remove 2 from length of string
+            if (csvInfo->windows_flag) {
+                tweeter_name_length = tweeter_name_length - 2;
+            // if linux new line, we must remove 2 from length of string
+            } else if (csvInfo->linux_flag) {
+                tweeter_name_length = tweeter_name_length - 1;
+            }
+
             strncpy(top_ten_names[i], top_ten_names[i] + 1, tweeter_name_length); // copy unquoted portion over
             top_ten_names[i][ tweeter_name_length - 2 ] = '\0'; // cut off remaining quoted part with null terminator
             printf("%s: %d\n", top_ten_names[i], top_ten_freqs[i]); // print
@@ -183,7 +195,6 @@ int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int fina
     if (num_final_elements <= 0) {
         error();
     }
-    
     return num_final_elements;
 }
 
@@ -196,6 +207,15 @@ void outerQuoteProcessor(char* str, struct csvInformation* csvInfo) {
     int str_length = strlen(str);
     int leading_qm = 0;
     int trailing_qm = 0; //qm = quotation marks
+
+    // for adapting for loop array bounds for quote checking
+    // windows newlines will add 2 extra chars "\r\n"
+    // linux newlines will add 1 extra char "\n"
+    if (csvInfo->windows_flag == true) { // if windows newline (quoted)
+        str_length = str_length - 2;
+    } else if (csvInfo->linux_flag == true) { // if linux newline (quoted)
+        str_length = str_length - 1;
+    }
 
     // count number of leading quotation marks
     for(int i = 0; i < str_length; i++){
@@ -214,7 +234,10 @@ void outerQuoteProcessor(char* str, struct csvInformation* csvInfo) {
         }
     }
     
-    if (leading_qm != trailing_qm) { // if quotes mismatch, then error
+    // if name header is quoted and has newline, then 
+    if (csvInfo->newline_quoted_flag == true) {
+
+    } else if (leading_qm != trailing_qm) { // if quotes mismatch, then error
         //printf("Error occured on (word: %s) with (leading qm: %d) and (trailing: %d)\n", str, leading_qm, trailing_qm);
         error();
     } else if (leading_qm == 0 & trailing_qm == 0) { // else if no outer quotes
@@ -307,19 +330,30 @@ int getNameColumn (char* first_line, struct csvInformation* csvInfo) {
         for (int i = 0; token != NULL; i++) {
 
             // Check string equality to either variant of name
-            // Unquoted name
+            // Unquoted name with or without newline (same treatment)
             if (strcmp(token, name_string) == 0 ||
                 strcmp(token, name_string_windows) == 0 ||
                 strcmp(token, name_string_linux) == 0) {
                 num_col = i;
                 name_flag = 1;
-                csvInfo->quoted_header = false;
-            // Quoted "name"
-            } else if (strcmp(token, name_string_quoted) == 0 ||
-                       strcmp(token, name_string_quoted_windows) == 0 ||
-                       strcmp(token, name_string_quoted_linux) == 0) {
+            // Quoted "name" 
+            } else if (strcmp(token, name_string_quoted) == 0) {
                 num_col = i;
                 name_flag = 1;
+                csvInfo->quoted_header = true;
+            // Quoted "name" with Windows newline
+            } else if (strcmp(token, name_string_quoted_windows) == 0) {
+                num_col = i;
+                name_flag = 1;
+                csvInfo->newline_quoted_flag = true;
+                csvInfo->windows_flag = true;
+                csvInfo->quoted_header = true;
+            // Quoted "name" with Linux newline
+            } else if (strcmp(token, name_string_quoted_linux) == 0) {
+                num_col = i;
+                name_flag = 1;
+                csvInfo->newline_quoted_flag = true;
+                csvInfo->linux_flag = true;
                 csvInfo->quoted_header = true;
             }
             token = strtok(NULL, ","); // read next field
