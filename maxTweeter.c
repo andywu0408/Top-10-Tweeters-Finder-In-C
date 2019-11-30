@@ -234,11 +234,8 @@ void outerQuoteProcessor(char* str, struct csvInformation* csvInfo) {
         }
     }
     
-    // if name header is quoted and has newline, then 
-    if (csvInfo->newline_quoted_flag == true) {
-
-    } else if (leading_qm != trailing_qm) { // if quotes mismatch, then error
-        //printf("Error occured on (word: %s) with (leading qm: %d) and (trailing: %d)\n", str, leading_qm, trailing_qm);
+    if (leading_qm != trailing_qm) { // if quotes mismatch, then error
+        printf("Error occured on (word: %s) with (leading qm: %d) and (trailing: %d)\n", str, leading_qm, trailing_qm);
         error();
     } else if (leading_qm == 0 & trailing_qm == 0) { // else if no outer quotes
         
