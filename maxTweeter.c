@@ -19,14 +19,14 @@ struct csvInformation {
 
 // main functions
 void printTopTen(char* top_ten_names[], int top_ten_freqs[], struct csvInformation* csvInfo);
-void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[], struct csvInformation* csvInfo, FILE* file_ptr);
+void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[], struct csvInformation* csvInfo);
 int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], struct csvInformation* csvInfo);
 int getNameColumn (char* first_line, struct csvInformation* csvInfo);
 
 // helper functions
 int cmpfunc(const void * a, const void * b);
-int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int final_freqs[], struct csvInformation* csvInfo, FILE* file_ptr);
-void outerQuoteProcessor(char* str, struct csvInformation* csvInfo, FILE* file_ptr);
+int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int final_freqs[], struct csvInformation* csvInfo);
+void outerQuoteProcessor(char* str, struct csvInformation* csvInfo);
 void error();
 
 // gdb note: p final_freqs[x]@10
@@ -75,7 +75,7 @@ int main (int argc, char* argv[]) {
     int top_ten_freqs[10]; // frequencies of tweets made by top 10 tweeters
 
     // Get names and frequencies of 10 different tweeters who made most tweets
-    fillTopTenNamesAndFreq(tweetersName, num_names, top_ten_names, top_ten_freqs, &csvInfo, file_ptr);
+    fillTopTenNamesAndFreq(tweetersName, num_names, top_ten_names, top_ten_freqs, &csvInfo);
     
     // Print the names and frequencies of top 10 tweeters
     printTopTen(top_ten_names, top_ten_freqs, &csvInfo);
@@ -111,7 +111,7 @@ void printTopTen(char* top_ten_names[], int top_ten_freqs[], struct csvInformati
 }
 
 // Get names and frequencies of 10 different tweeters who made most tweets
-void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[], struct csvInformation* csvInfo, FILE* file_ptr) {
+void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[], int top_ten_freqs[], struct csvInformation* csvInfo) {
     char* final_names[FILE_LINES_MAX]; // all names of tweeters, with no repeated element
     int final_freqs[FILE_LINES_MAX]; // frequencies of tweets made by all individual tweeters
     
@@ -120,7 +120,7 @@ void fillTopTenNamesAndFreq(char* names[], int num_names, char* top_ten_names[],
         final_freqs[i] = 0;
     }
 
-    int num_final_elements = fillNamesAndFreq(names, num_names, final_names, final_freqs, csvInfo, file_ptr);
+    int num_final_elements = fillNamesAndFreq(names, num_names, final_names, final_freqs, csvInfo);
     
     // Sort frequencies in descending order
     qsort(final_freqs, num_final_elements, sizeof(int), cmpfunc);
@@ -153,7 +153,7 @@ int cmpfunc (const void * a, const void * b) {
 }
 
 // helper function for fillTopTenNamesAndFreq function
-int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int final_freqs[], struct csvInformation* csvInfo, FILE* file_ptr) {
+int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int final_freqs[], struct csvInformation* csvInfo) {
     int freq; // counter
     char* current;
     int num_final_elements = 0; // unique names
@@ -168,7 +168,7 @@ int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int fina
             current = names[i]; // store current name
 
             // check quoting of current name
-            outerQuoteProcessor(names[i], csvInfo, file_ptr);
+            outerQuoteProcessor(names[i], csvInfo);
             
             for (int j = i + 1; j < num_names; j++) {
 
@@ -178,7 +178,7 @@ int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int fina
                 }
 
                 // check quoting of compared (next) name
-                outerQuoteProcessor(names[j], csvInfo, file_ptr);
+                outerQuoteProcessor(names[j], csvInfo);
                 
                 // if name is repeated
                 if (strcmp(current, names[j]) == 0) { 
@@ -203,7 +203,7 @@ int fillNamesAndFreq(char* names[], int num_names, char* final_names[], int fina
     1. validate that we have same number of outer quotes (leading and trailing quotes)
     2. If match, strip off outermost quotes directly from names pointer
 */
-void outerQuoteProcessor(char* str, struct csvInformation* csvInfo, FILE* file_ptr) {
+void outerQuoteProcessor(char* str, struct csvInformation* csvInfo) {
     // store length of name
     int str_length = strlen(str);
     int leading_qm = 0;
