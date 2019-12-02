@@ -267,7 +267,7 @@ void outerQuoteProcessor(char* str, struct csvInformation* csvInfo) {
 int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], struct csvInformation* csvInfo) {
     char line[LINE_CHARS_MAX + 2]; // one line in file
     char* temp; // store pointer to line
-    int col_counter;
+    int col_counter = 0;
     int counter = 0;
     
     // get one line from file if not end of file yet
@@ -277,9 +277,9 @@ int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], struct cs
             error();
         }
 
-        temp = strdup(line);
-        col_counter = 0;
-        char* token = strsep(&temp, ",");
+        temp = strdup(line); // copy line
+        col_counter = 0; // counting columns for valid csv
+        char* token = strsep(&temp, ","); // first token
         // get name of tweeter from this line of file
         while (token != NULL) {
             if (col_counter == num_col) { // if at the name column
@@ -309,7 +309,7 @@ int getTweetersName(FILE* file_ptr, int num_col, char* tweetersName[], struct cs
 
 // Get the column number for names
 int getNameColumn (char* first_line, struct csvInformation* csvInfo) {
-    
+    char* temp; // store pointer to line
     int num_col = 0;
     int name_flag = 0;
 
@@ -317,9 +317,9 @@ int getNameColumn (char* first_line, struct csvInformation* csvInfo) {
     if (first_line == NULL) {
         error();
     }
-    else {
-        // Search first line for name column
-        char* token = strtok(first_line, ",");
+    else { // Search first line for name column
+        temp = strdup(first_line); // copy line
+        char* token = strsep(&temp, ","); // first token
 
         // Looking for quoted "name" or unquoted name
         // In either Windows/Linux file format, since "name" could be the last column
@@ -360,7 +360,7 @@ int getNameColumn (char* first_line, struct csvInformation* csvInfo) {
                 csvInfo->linux_flag = true;
                 csvInfo->quoted_header = true;
             }
-            token = strtok(NULL, ","); // read next field
+            token = strsep(&temp, ","); // read next field
             csvInfo->header_count++; // increment header fields
         }
     }
