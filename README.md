@@ -1,4 +1,6 @@
 # ecs160-hw4
 Authors: Che-An Wu and Manpreet Kang 
 
-A robust, bug-free program that finds the top ten tweeters who make most tweets from a given csv file. Goal is to run fuzz test and write code that doesn't crash.
+This is a robust, bug-free Java program that finds the top ten tweeters who make most tweets from a given csv file of historical tweets record.
+
+The goal is to run fuzz tests, do unit tests, and write code that is both clean and doesn't crash.
